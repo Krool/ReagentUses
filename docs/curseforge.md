@@ -42,14 +42,14 @@ Inspired by MasterTradeSkills for Vanilla and Turtle WoW. This is a fresh write 
 
 Open source (MIT): https://github.com/Krool/ReagentUses
 
-## Owner steps CurseForge needs from a person
+## State (2026-11-14)
 
-1. **Create the project.** Go to authors.curseforge.com > Create Project > World of Warcraft, then
-   fill in the fields above.
-2. **Wait for moderation.** CurseForge reviews every new project. Files can be uploaded while it
-   waits.
-3. **Add the project id.** Put it in `ReagentUses/ReagentUses_Forever.toc` as
-   `## X-Curse-Project-ID: <id>`.
-4. **Release with -Publish.** Run `scripts\release.ps1 -Version x.y.z -Publish`. The `CF_API_KEY`
-   token already set for Krool World Forever works for any project on the account.
-5. **Check the file.** It must say Forever 1.60.1, not Retail.
+- **Project:** 1804597, created with the fields above. It is awaiting moderation, and CurseForge
+  hides it until approved.
+- **0.1.0:** uploaded by `release.ps1 -Publish` through the API, tagged 1.60.1.
+- **Left for the owner:**
+  - Answer moderation if CurseForge asks anything.
+  - Swap the placeholder logo for your own if you want.
+  - Add in-game screenshots under Media.
+- **Comments:** Allow Comments is off, as CurseForge sets it. Turn it on under General to take
+  feedback there.

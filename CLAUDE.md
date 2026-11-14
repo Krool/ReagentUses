@@ -49,6 +49,8 @@ Read it before changing client code.
     `## X-Curse-Project-ID` in the TOC and the user env var `CF_API_KEY`. Never write or echo the
     token.
   - Check that every CurseForge file is tagged Forever 1.60.1, not Retail.
+  - CurseForge project 1804597 (slug `reagent-uses`) was created 2026-11-14 and is awaiting
+    moderation. The API upload works: 0.1.0 went up through `-Publish`, tagged 1.60.1.
 - Commit messages: write the file as UTF-8 without BOM, then `git commit -F`. Stage only paths you
   touched; never `git add -A`.
 - `scripts\link-addon.ps1` junctions `ReagentUses\` into `_forever_\Interface\AddOns` for testing in
