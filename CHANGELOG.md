@@ -13,4 +13,5 @@ First release.
 - How many of the material each recipe takes, and how many more recipes use what it makes.
 - Settings: the key (Ctrl, Alt, Shift or always), the hint line, other characters, hiding grey
   recipes, and how many recipes to list. `/ru chars`, `/ru forget <name>`, `/ru errors`.
-- Data from Forever build 1.60.1.70938: 2108 recipes using 526 materials.
+- Data from Forever build 1.60.1.70938: 2182 recipes using 526 materials. Vanilla trainer levels are
+  moved by as much as Forever moved each recipe's thresholds.

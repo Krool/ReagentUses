@@ -51,6 +51,11 @@ function ns.BuildSettings()
 end
 
 function ns.OpenSettings()
+	-- Opening the panel is restricted in combat (C_SettingsUtil.OpenSettingsPanel, HasRestrictions).
+	if InCombatLockdown and InCombatLockdown() then
+		ns.Print("the settings open after combat.")
+		return
+	end
 	if ns.category and Settings and Settings.OpenToCategory then
 		Settings.OpenToCategory(ns.category:GetID())
 	end
@@ -96,18 +101,30 @@ local function Forget(name)
 		ns.Print("/ru forget <name>: which character?")
 		return
 	end
-	local gone = 0
+	-- "Name-Realm" matches one character; a bare name must match only one, else the realm is needed.
+	local hits = {}
 	for _, key in ipairs(SortedKeys(ns.db.chars)) do
+		if key:lower() == name then
+			hits = { key }
+			break
+		end
 		local c = ns.db.chars[key]
-		local short = type(c) == "table" and type(c.name) == "string" and c.name:lower() or ""
-		if key ~= ns.meKey and (key:lower() == name or short == name) then
-			ns.db.chars[key] = nil
-			gone = gone + 1
-			ns.Print("forgot " .. key .. ".")
+		if type(c) == "table" and type(c.name) == "string" and c.name:lower() == name then
+			hits[#hits + 1] = key
 		end
 	end
-	if gone == 0 then
-		ns.Print("no other character called " .. name .. ". /ru chars lists them.")
+	if #hits > 1 then
+		ns.Print("more than one character is called " .. name .. ": " .. table.concat(hits, ", ") .. ". Use /ru forget Name-Realm.")
+		return
+	end
+	local key = hits[1]
+	if not key then
+		ns.Print("no character called " .. name .. ". /ru chars lists them.")
+	elseif key == ns.meKey then
+		ns.Print("that is the character you are on. Log in on another one to forget it.")
+	else
+		ns.db.chars[key] = nil
+		ns.Print("forgot " .. key .. ".")
 	end
 end
 

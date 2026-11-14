@@ -3,6 +3,23 @@
 
 time = os.time
 
+-- Counts every issecretvalue question (common.lua defines it; Core.lua keeps this wrapper), so a test
+-- can prove a value was checked even where a type test would also have rejected the stub secret.
+local realIsSecret = issecretvalue
+SecretAsks = 0
+function issecretvalue(v)
+	SecretAsks = SecretAsks + 1
+	return realIsSecret(v)
+end
+
+Combat, Instance = false, false
+function InCombatLockdown()
+	return Combat
+end
+function IsInInstance()
+	return Instance, Instance and "party" or "none"
+end
+
 -- ---------------------------------------------------------------- character
 
 Player = { name = "Krool", realm = "Forever", class = "MAGE" }
@@ -39,7 +56,14 @@ C_SkillInfo = {
 	end,
 }
 
--- The crafting window: Window = { base = ProfessionInfo, child = ProfessionInfo, npc = bool } or nil.
+-- Blizzard_ProfessionsTemplates' check: not NPC, guild, guild member or linked.
+Professions = {
+	InLocalCraftingMode = function()
+		return not (Window and (Window.npc or Window.linked))
+	end,
+}
+
+-- The crafting window: Window = { base = ProfessionInfo, child = ProfessionInfo, npc, linked } or nil.
 Window = nil
 RecipeInfo = {} -- recipe id -> TradeSkillRecipeInfo (only learned matters here)
 RecipeInfoCalls = 0
@@ -155,6 +179,9 @@ function TipMeta.__index:AddDoubleLine(l, r)
 end
 function TipMeta.__index:IsShown()
 	return self.shown
+end
+function TipMeta.__index:GetOwner()
+	return self.owner
 end
 function TipMeta.__index:GetItem()
 	return "item", "link", self.item

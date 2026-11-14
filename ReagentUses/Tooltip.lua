@@ -26,13 +26,14 @@ local function Hex(color, s)
 end
 
 -- The crafting-window color of a recipe at a skill: orange, yellow, green, grey, or red when the skill
--- is below the level the recipe is learned at. nil without a skill or without thresholds.
-function ns.Band(rank, r)
+-- is below the level the recipe is learned at (never for one already known). nil without a skill or
+-- without thresholds.
+function ns.Band(rank, r, known)
 	if type(rank) ~= "number" then
 		return nil
 	end
 	local yellow, grey, learn = r[2], r[3], r[6]
-	if learn > 0 and rank < learn then
+	if learn > 0 and rank < learn and not known then
 		return "red"
 	end
 	if yellow <= 0 or grey <= 0 then
@@ -115,9 +116,10 @@ function ns.Collect(item)
 				-- Two recipes with one name (faction versions): one row, either one's knowledge.
 				e.mine = e.mine or mine
 				e.alts = e.alts or alts
+				e.band = ns.Band(g.rank, e.r, e.mine)
 			else
 				e = { id = id, r = r, count = count, name = name, mine = mine, alts = alts }
-				e.band = ns.Band(g.rank, r)
+				e.band = ns.Band(g.rank, r, mine)
 				g.seen[name] = e
 				if not (opt.hideGrey and e.band == "grey") then
 					g.list[#g.list + 1] = e
@@ -197,7 +199,7 @@ function ns.RightText(e, rank)
 				parts[#parts + 1] = Hex(DIM, "+" .. (#e.alts - ALTS_SHOWN))
 				break
 			end
-			local band = ns.Band(a.rank, e.r)
+			local band = ns.Band(a.rank, e.r, true)
 			local label = a.name
 			if a.realm and ns.me and a.realm ~= ns.me.realm then
 				label = label .. "-" .. a.realm
@@ -295,8 +297,11 @@ function ns.HookTooltips()
 	end
 end
 
--- Pressing or releasing the key redraws a material tooltip that is up. Bag slots also redraw by
--- themselves every 0.2 s; this covers the rest (merchant, bank, auction rows, links).
+-- Pressing or releasing the key redraws a material tooltip that is up. An owner with UpdateTooltip
+-- (bag, bank and merchant slots) redraws itself every 0.2 s, its own extra lines included, so it is
+-- left alone. Other tooltips are rebuilt through RefreshData, but never in combat or an instance:
+-- the rebuild runs as this addon (tainted), and tooltip data is secret there. Elsewhere, hovering the
+-- item again shows the list.
 function ns.OnModifier(key)
 	if not ns.opt or Secret(key) or type(key) ~= "string" then
 		return
@@ -307,6 +312,13 @@ function ns.OnModifier(key)
 	end
 	local tt = GameTooltip
 	if not (tt and tt.IsShown and tt:IsShown() and tt.GetItem and tt.RefreshData) then
+		return
+	end
+	if (InCombatLockdown and InCombatLockdown()) or (IsInInstance and IsInInstance()) then
+		return
+	end
+	local owner = tt.GetOwner and tt:GetOwner()
+	if type(owner) == "table" and owner.UpdateTooltip then
 		return
 	end
 	local ok, _, _, item = pcall(tt.GetItem, tt)

@@ -80,6 +80,8 @@ do
 	Check(bad == 0, "every recipe row is well formed, and every use points at a recipe (" .. bad .. " bad)")
 end
 Check(ns.UseCount(SILK) == 10, "Silk Cloth is used in 10 recipes")
+Check(D.recipes[2166][6] == 95 and D.recipes[2166][2] == 120, "a vanilla trainer level moves with Forever's yellow (Toughened Leather Armor 120 -> 95)")
+Check(D.recipes[1292981] ~= nil and D.recipes[1292981][4] == 0, "a recipe whose crafted item the client hides is kept, without the item")
 do
 	local seen = {}
 	for i = 1, #D.uses[SILK], 2 do
@@ -139,7 +141,7 @@ Check(tIdx and fIdx and eIdx and tIdx < fIdx and fIdx < eIdx, "your professions 
 local bolt = Find(lines, "Bolt of Silk Cloth")
 Check(bolt and Plain(bolt.left):find("x4") and Plain(bolt.left):find("%(used in %d+%)"), "the bolt line shows the count and what the bolt goes into")
 Check(bolt and bolt.left:find("|cff808080Bolt of Silk Cloth") ~= nil, "Tailoring 150 against grey 120: the bolt is grey")
-Check(bolt and Plain(bolt.right) == "Trainer", "not known: the right side says where it is learned")
+Check(bolt and Plain(bolt.right) == "Trainer 100", "not known: where it is learned, at the shifted level (vanilla 125, Forever moved yellow down 25)")
 local heavy = Find(lines, "Heavy Silk Bandage")
 Check(heavy and heavy.left:find("|cffff1a1a") ~= nil, "First Aid 100 under the 180 it is learned at: red")
 Check(heavy and Plain(heavy.right) == "Vendor 180" and heavy.right:find("|cffff1a1a180") ~= nil, "learn level shown, red while out of reach")
@@ -192,24 +194,68 @@ Fire("TRADE_SKILL_SHOW")
 RunTimers()
 Check(me.known[202] == nil, "a profession this character does not have is not recorded")
 
+-- A guildmate's or linked Tailoring at the very same skill: Blizzard's local-mode check says no.
+RecipeInfo = { [BOLT] = { learned = false }, [3865] = { learned = true } }
+OpenWindow(150, { linked = true })
+Fire("TRADE_SKILL_SHOW")
+RunTimers()
+Check(me.known[197][BOLT] == true and not me.known[197][3865], "a linked view at your own skill is not recorded")
+do
+	local P = Professions
+	Professions = nil
+	OpenWindow(150)
+	Fire("TRADE_SKILL_SHOW")
+	RunTimers()
+	Professions = P
+	Check(me.known[197][BOLT] == true and not me.known[197][3865], "without Blizzard's local-mode check nothing is recorded")
+end
+
+-- The window closed before the queued scan ran.
+OpenWindow(150)
+Fire("TRADE_SKILL_SHOW")
+Fire("TRADE_SKILL_CLOSE")
+RunTimers()
+Check(me.known[197][BOLT] == true and not me.known[197][3865], "a scan after the window closed reads nothing")
+
 -- The list not loaded yet (every GetRecipeInfo nil): keep what we had.
 OpenWindow(150)
 RecipeInfo = {}
 Fire("TRADE_SKILL_SHOW")
 RunTimers()
 Check(me.known[197][BOLT] == true, "an empty answer keeps the recorded recipes")
+RecipeInfo = { [BOLT] = { learned = false }, [3914] = { learned = false } }
+Fire("TRADE_SKILL_SHOW")
+RunTimers()
+Check(me.known[197][BOLT] == true, "an all-unlearned answer does not wipe the recorded recipes")
 
--- A secret learned flag is skipped, not tested.
+-- A secret learned flag is skipped, not tested: no error, both answers counted.
+local errorsBefore = #ReagentUsesDB.errors
 RecipeInfo = { [BOLT] = { learned = true }, [3914] = { learned = Secret() } }
 Fire("TRADE_SKILL_SHOW")
 local ok = pcall(RunTimers)
-Check(ok and me.known[197][BOLT] == true and me.known[197][3914] == nil, "a secret learned flag is skipped")
+Check(ok and #ReagentUsesDB.errors == errorsBefore, "a secret learned flag raises no error")
+Check(ns.lastScan and ns.lastScan.answered == 2 and ns.lastScan.known == 1, "the scan finished: one learned, the secret one skipped")
+Check(me.known[197][BOLT] == true and me.known[197][3914] == nil, "a secret learned flag is not recorded as learned")
+Fire("TRADE_SKILL_CLOSE")
 Window = nil
 
 Fire("NEW_RECIPE_LEARNED", BANDAGE)
 Check(me.known[129] and me.known[129][BANDAGE] == true, "learning a recipe records it at once")
+errorsBefore = #ReagentUsesDB.errors
 Fire("NEW_RECIPE_LEARNED", 999999)
-Check(true, "an unknown recipe id is ignored")
+Fire("NEW_RECIPE_LEARNED", Secret())
+Check(#ReagentUsesDB.errors == errorsBefore, "an unknown or secret recipe id is ignored without an error")
+
+-- The skill read is cached; a skill point clears it.
+ns.MySkill(197)
+Skills[2948] = 151
+Check(ns.MySkill(197) == 150, "the skill is cached between tooltips")
+Fire("CHAT_MSG_SKILL", "Your skill in Tailoring has increased to 151.")
+Check(ns.MySkill(197) == 151, "a skill-up message refreshes it")
+Skills[2948] = 150
+Fire("TRADE_SKILL_LIST_UPDATE")
+Check(ns.MySkill(197) == 150, "the crafting window refreshes it too")
+RunTimers()
 
 -- ---------------------------------------------------------------- other characters
 
@@ -305,8 +351,9 @@ end
 
 -- ---------------------------------------------------------------- secrets and errors
 
+SecretAsks = 0
 lines = ShowItem(GameTooltip, nil, { id = Secret() })
-Check(#lines == 0, "a secret item id is left alone")
+Check(#lines == 0 and SecretAsks > 0, "a secret item id is checked with issecretvalue and left alone")
 ok = pcall(ns.OnItemTooltip, GameTooltip, "not a table")
 Check(ok, "a tooltip without data is left alone")
 
@@ -332,10 +379,24 @@ GameTooltip.item = 117
 Fire("MODIFIER_STATE_CHANGED", "RCTRL", 0)
 Check(GameTooltip.refreshes == 1, "a non-material tooltip is not redrawn")
 GameTooltip.item = Secret()
-ok = pcall(Fire, "MODIFIER_STATE_CHANGED", "RCTRL", 0)
-Check(ok and GameTooltip.refreshes == 1, "a secret item on the tooltip is left alone")
-GameTooltip.shown = false
+SecretAsks = 0
+errorsBefore = #ReagentUsesDB.errors
+Fire("MODIFIER_STATE_CHANGED", "RCTRL", 0)
+Check(SecretAsks > 0 and #ReagentUsesDB.errors == errorsBefore and GameTooltip.refreshes == 1, "a secret item on the tooltip is checked and left alone")
 GameTooltip.item = SILK
+GameTooltip.owner = { UpdateTooltip = function() end }
+Fire("MODIFIER_STATE_CHANGED", "LCTRL", 1)
+Check(GameTooltip.refreshes == 1, "a bag slot (it has UpdateTooltip) redraws itself: no rebuild")
+GameTooltip.owner = nil
+Combat = true
+Fire("MODIFIER_STATE_CHANGED", "LCTRL", 1)
+Combat = false
+Check(GameTooltip.refreshes == 1, "no rebuild in combat")
+Instance = true
+Fire("MODIFIER_STATE_CHANGED", "LCTRL", 1)
+Instance = false
+Check(GameTooltip.refreshes == 1, "no rebuild in an instance")
+GameTooltip.shown = false
 Fire("MODIFIER_STATE_CHANGED", "LCTRL", 1)
 Check(GameTooltip.refreshes == 1, "a hidden tooltip is not redrawn")
 Keys.CTRL = false
@@ -348,6 +409,33 @@ Check(ns.Band(99, r) == "orange" and ns.Band(100, r) == "yellow", "yellow from t
 Check(ns.Band(109, r) == "yellow" and ns.Band(110, r) == "green", "green from halfway")
 Check(ns.Band(119, r) == "green" and ns.Band(120, r) == "grey", "grey from the grey threshold")
 Check(ns.Band(nil, r) == nil and ns.Band(150, { 0, 0, 0, 0, "", 0 }) == nil, "no skill or no thresholds: no color")
+Check(ns.Band(50, r, true) == "orange", "a known recipe is never red")
+
+-- In the tooltip: First Aid 100 knows Heavy Silk Bandage (learned at 180): orange, not red.
+Fire("NEW_RECIPE_LEARNED", HEAVY)
+Keys.CTRL = true
+lines = ShowItem(GameTooltip, SILK)
+heavy = Find(lines, "Heavy Silk Bandage")
+Check(heavy and heavy.left:find("|cffff8040Heavy") ~= nil and Plain(heavy.right):find("^Known"), "known below its learn level: orange and Known")
+Keys.CTRL = false
+me.known[129][HEAVY] = nil
+
+-- Dropping a profession forgets it, but only once the skill list has loaded (not at login).
+Skills[2948] = nil
+Fire("PLAYER_LOGIN")
+Check(me.skills[197] == 150 and me.known[197] ~= nil, "a login read that misses a skill keeps it")
+Fire("SKILL_LINES_CHANGED")
+Check(me.skills[197] == nil and me.known[197] == nil and me.skills[129] == 100, "an abandoned profession is forgotten, the others stay")
+do
+	local saved = Skills
+	Skills = {}
+	Fire("SKILL_LINES_CHANGED")
+	Check(me.skills[129] == 100, "an empty skill list (not loaded yet) forgets nothing")
+	Skills = saved
+end
+Skills[2948] = 150
+Fire("SKILL_LINES_CHANGED")
+Check(me.skills[197] == 150, "relearned: the skill is back")
 
 -- ---------------------------------------------------------------- settings and /ru
 
@@ -358,14 +446,24 @@ for _, s in ipairs(SettingsLog.settings) do
 	Check(s.tbl == ReagentUsesDB.options and type(s.default) == s.varType, "setting " .. s.key .. " is stored in the options with a matching default")
 end
 
+Combat = true
+local before = #Chat
+SlashCmdList.REAGENTUSES("")
+Combat = false
+Check(SettingsLog.opened == nil and Plain(Chat[#Chat]):find("after combat"), "/ru in combat waits: the panel is restricted there")
 SlashCmdList.REAGENTUSES("")
 Check(SettingsLog.opened == 77, "/ru opens the settings")
-local before = #Chat
+before = #Chat
 SlashCmdList.REAGENTUSES("chars")
 local listed = table.concat(Chat, "\n", before + 1)
 Check(Plain(listed):find("Krool%-Forever %(this character%)") and Plain(listed):find("Bob%-Forever"), "/ru chars lists the characters")
+ReagentUsesDB.chars["Bob-Elsewhere"] = { name = "Bob", realm = "Elsewhere", skills = {}, known = {} }
 SlashCmdList.REAGENTUSES("forget bob")
-Check(ReagentUsesDB.chars["Bob-Forever"] == nil, "/ru forget drops a character by name")
+Check(ReagentUsesDB.chars["Bob-Forever"] and ReagentUsesDB.chars["Bob-Elsewhere"] and Plain(Chat[#Chat]):find("Name%-Realm"), "/ru forget with a name on two realms asks for the realm")
+SlashCmdList.REAGENTUSES("forget Bob-Forever")
+Check(ReagentUsesDB.chars["Bob-Forever"] == nil and ReagentUsesDB.chars["Bob-Elsewhere"], "/ru forget Name-Realm drops just that one")
+SlashCmdList.REAGENTUSES("forget bob")
+Check(ReagentUsesDB.chars["Bob-Elsewhere"] == nil, "/ru forget drops a character by name when it is the only one")
 SlashCmdList.REAGENTUSES("forget krool")
 Check(ReagentUsesDB.chars["Krool-Forever"] ~= nil, "/ru forget never drops the character you are on")
 before = #Chat

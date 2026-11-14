@@ -29,8 +29,12 @@ Read it before changing client code.
     (wago.tools CSVs) and `tools/data/sqlcache/` (cmangos classic-db), both git-ignored.
   - Forever's own tables decide which recipes exist. Categories without a parent are Season of
     Discovery leftovers, and are dropped along with test and unnamed spells.
-  - The classic DB only fills trainer learn levels and recipe-item sources. A classic learn level
-    above Forever's yellow is dropped.
+  - The classic DB only fills trainer learn levels and recipe-item sources. A vanilla trainer level is
+    shifted by Forever's change to that recipe's yellow (Classic Era's SkillLineAbility, build
+    `ERA_BUILD` in the generator), since Forever's own recipe items moved their required skill the
+    same way. One still above Forever's yellow is dropped.
+  - Recipes whose crafted item the client hides (Forever's set pieces) stay, with item 0. Recipes
+    taught only by items missing from the client are dropped; the generator prints their names.
   - `run.js` fails when Data.lua's build differs from the API allowlist's.
 
 ## Tests and release

@@ -54,10 +54,12 @@ function parseCsv(text) {
   return rows;
 }
 
-function table(name) {
-  const file = path.join(CACHE, name + ".csv");
+function table(name, fromBuild = build) {
+  const dir = path.join(__dirname, "cache", fromBuild);
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, name + ".csv");
   if (!fs.existsSync(file)) {
-    const url = `https://wago.tools/db2/${name}/csv?build=${build}`;
+    const url = `https://wago.tools/db2/${name}/csv?build=${fromBuild}`;
     console.log("downloading " + url);
     execFileSync("curl", ["-sfL", "-o", file, url], { stdio: "inherit" });
   }
@@ -76,6 +78,15 @@ function table(name) {
 const T = {};
 for (const name of TABLES) T[name] = table(name);
 const num = (v) => Number(v) || 0;
+
+// Classic Era's thresholds: Forever moved many recipes' yellow (and their learn level with it, as its
+// recipe items show), so a vanilla trainer level is shifted by the same amount.
+const ERA_BUILD = "1.15.9.70576";
+const eraYellow = new Map();
+for (const r of table("SkillLineAbility", ERA_BUILD)) {
+  const y = num(r.TrivialSkillLineRankLow);
+  if (y > 0 && !eraYellow.has(num(r.Spell))) eraYellow.set(num(r.Spell), y);
+}
 
 // ------------------------------------------------------------------ Forever: which recipes exist
 
@@ -247,19 +258,25 @@ for (const [t, letter] of Object.entries(LOOT)) {
 // Source letters, in display order: S starter (known with the profession), T trainer, V vendor,
 // D drop, F fishing, Q quest, R recipe item from an unknown place.
 const ORDER = "STVDFQR";
-const dropped = { ghostOnly: 0, noResult: 0, noReagents: 0 };
+const dropped = { ghostOnly: 0, noReagents: 0 };
+const droppedNames = [];
+let hiddenResults = 0;
+let shifted = 0;
 for (const [spell, rec] of [...recipes]) {
   const known = recipeItems.get(spell);
-  // Every item that teaches it is gone from the client, and nothing else does: never obtainable.
+  // Every item that teaches it is gone from the client, and nothing else does: never obtainable
+  // (vanilla's Green Woolen Robe and friends), or a Forever addition not out yet.
   if (!known && ghostItems.has(spell) && !trainerLevel.has(spell) && !questSpells.has(spell) && rec.acquire === 0) {
     recipes.delete(spell);
     dropped.ghostOnly++;
+    droppedNames.push(spellNames.get(spell) + " (" + spell + ")");
     continue;
   }
+  // Forever hides some crafted items (its new set pieces) while their recipe items are out: keep the
+  // recipe, without the item it makes.
   if (rec.result && !items.has(rec.result)) {
-    recipes.delete(spell); // makes an item the client does not have
-    dropped.noResult++;
-    continue;
+    rec.result = 0;
+    hiddenResults++;
   }
   if (rec.acquire === 1 || rec.acquire === 2) rec.sources.add("S");
   if (trainerLevel.has(spell)) rec.sources.add("T");
@@ -272,9 +289,17 @@ for (const [spell, rec] of [...recipes]) {
     const req = num(items.get(item).RequiredSkillRank);
     if (req > 0 && (!itemLearn || req < itemLearn)) itemLearn = req;
   }
-  // Forever's recipe item wins; the vanilla trainer level only when it fits under Forever's yellow.
+  // Forever's recipe item wins. A vanilla trainer level moves by as much as Forever moved the yellow
+  // threshold, and is kept only when it still fits under Forever's yellow.
   let learn = itemLearn;
-  if (!learn && trainerLevel.has(spell)) learn = trainerLevel.get(spell);
+  if (!learn && trainerLevel.has(spell)) {
+    learn = trainerLevel.get(spell);
+    const eraY = eraYellow.get(spell);
+    if (eraY && rec.yellow && eraY !== rec.yellow) {
+      learn = Math.max(1, learn - (eraY - rec.yellow));
+      shifted++;
+    }
+  }
   if (rec.sources.has("S")) learn = 0;
   if (learn && rec.yellow && learn > rec.yellow) learn = 0;
   rec.learn = learn > 1 ? learn : 0;
@@ -341,4 +366,6 @@ for (const r of recipes.values()) {
 const withLearn = [...recipes.values()].filter((r) => r.learn).length;
 console.log(`Data.lua: ${recipes.size} recipes in ${lines.size} professions, ${uses.size} materials, build ${build}`);
 console.log("skipped", JSON.stringify(skipped), "dropped", JSON.stringify(dropped));
+console.log(`kept ${hiddenResults} recipes whose crafted item the client hides; shifted ${shifted} trainer levels by Forever's threshold change`);
+console.log("dropped as unobtainable (no teaching item in the client): " + droppedNames.join(", "));
 console.log(`learn level known for ${withLearn}; sources ${JSON.stringify(bySource)}`);

@@ -215,19 +215,31 @@ function ns.MySkill(line)
 	return v or nil
 end
 
--- Re-reads every profession skill into this character's record, so other characters see it.
-function ns.RefreshSkills()
+function ns.ForgetSkillCache()
 	for k in pairs(skillCache) do
 		skillCache[k] = nil
 	end
+end
+
+-- Re-reads every profession skill into this character's record, so other characters see it. With
+-- prune (on SKILL_LINES_CHANGED, once the skill list has loaded), a profession that no longer reads
+-- was abandoned: its skill and known recipes go too.
+function ns.RefreshSkills(prune)
+	ns.ForgetSkillCache()
 	local me = ns.Me()
 	if not me then
 		return
 	end
+	local S = C_SkillInfo
+	local loaded = Num(S and Call(S.GetNumSkillLines))
+	prune = prune and loaded and loaded > 0
 	for line in pairs(ns.Data.lines) do
 		local r = ns.MySkill(line)
 		if r then
 			me.skills[line] = r
+		elseif prune then
+			me.skills[line] = nil
+			me.known[line] = nil
 		end
 	end
 	me.seen = time and time() or me.seen
@@ -271,17 +283,20 @@ function ns.OpenLine()
 end
 
 -- True when the window shows the player's own profession: not a chat link, a guild view or an NPC.
+-- Blizzard's Professions.InLocalCraftingMode (Blizzard_ProfessionsTemplates, loaded with the window)
+-- checks NPC, guild, guild member and linked views; without it nothing is recorded.
 local function LocalCrafting(line, shown)
 	local T = C_TradeSkillUI
 	if T and Call(T.IsNPCCrafting) == true then
 		return false
 	end
 	local P = Professions
-	if type(P) == "table" and type(P.InLocalCraftingMode) == "function" then
-		local ok, isLocal = pcall(P.InLocalCraftingMode)
-		if ok and not Secret(isLocal) and isLocal == false then
-			return false
-		end
+	if not (type(P) == "table" and type(P.InLocalCraftingMode) == "function") then
+		return false
+	end
+	local ok, isLocal = pcall(P.InLocalCraftingMode)
+	if not ok or Secret(isLocal) or isLocal ~= true then
+		return false
 	end
 	local mine = ns.ReadSkill(line)
 	if not mine then
@@ -294,9 +309,10 @@ end
 function ns.ScanOpen()
 	local T = C_TradeSkillUI
 	local me = ns.Me()
-	if not (T and me) then
-		return
+	if not (T and me and ns.windowOpen) then
+		return -- a scan that fires after the window closed reads nothing trustworthy
 	end
+	ns.ForgetSkillCache()
 	local line, shown = ns.OpenLine()
 	if not line or not LocalCrafting(line, shown) then
 		return
@@ -315,6 +331,10 @@ function ns.ScanOpen()
 	end
 	if answered == 0 then
 		return -- the list has not loaded yet; keep what we had
+	end
+	local had = me.known[line]
+	if count == 0 and type(had) == "table" and next(had) then
+		return -- every profession starts with recipes: an all-unlearned answer is a bad read
 	end
 	me.known[line] = set
 	me.skills[line] = ns.ReadSkill(line)
@@ -402,20 +422,31 @@ end
 
 function handlers.PLAYER_LOGIN()
 	ns.Me()
-	ns.RefreshSkills()
+	ns.RefreshSkills(false)
 	ns.Try("tooltip hook", ns.HookTooltips)
 end
 
 function handlers.SKILL_LINES_CHANGED()
-	ns.RefreshSkills()
+	ns.RefreshSkills(true)
+end
+
+-- A skill point; the skill lines event may not come for every point.
+function handlers.CHAT_MSG_SKILL()
+	ns.ForgetSkillCache()
 end
 
 function handlers.TRADE_SKILL_SHOW()
+	ns.windowOpen = true
 	ns.QueueScan()
 end
 
 function handlers.TRADE_SKILL_LIST_UPDATE()
+	ns.ForgetSkillCache()
 	ns.QueueScan()
+end
+
+function handlers.TRADE_SKILL_CLOSE()
+	ns.windowOpen = false
 end
 
 function handlers.NEW_RECIPE_LEARNED(id)
@@ -430,7 +461,7 @@ ns.handlers = handlers -- test seam
 local frame = CreateFrame("Frame")
 -- One line: the API lint checks the names of a list it can see beside the RegisterEvent.
 -- stylua: ignore
-for _, event in ipairs({ "ADDON_LOADED", "PLAYER_LOGIN", "SKILL_LINES_CHANGED", "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "NEW_RECIPE_LEARNED", "MODIFIER_STATE_CHANGED" }) do
+for _, event in ipairs({ "ADDON_LOADED", "PLAYER_LOGIN", "SKILL_LINES_CHANGED", "CHAT_MSG_SKILL", "TRADE_SKILL_SHOW", "TRADE_SKILL_LIST_UPDATE", "TRADE_SKILL_CLOSE", "NEW_RECIPE_LEARNED", "MODIFIER_STATE_CHANGED" }) do
 	frame:RegisterEvent(event)
 end
 frame:SetScript("OnEvent", function(_, event, ...)
