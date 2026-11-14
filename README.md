@@ -76,3 +76,5 @@ Turtle WoW. This is a fresh write with no code taken from it.
 - `scripts\release.ps1 -Version x.y.z [-Publish]` releases.
 
 MIT license.
+
+Ko-fi: [ko-fi.com/kroolworld](https://ko-fi.com/kroolworld)

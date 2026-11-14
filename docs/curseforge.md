@@ -10,8 +10,9 @@ The text and settings for the CurseForge project. The game version on every file
 - **License:** MIT.
 - **Source:** https://github.com/Krool/ReagentUses (Automatic Packaging off: `release.ps1 -Publish`
   uploads the tested zip).
-- **Donation:** Ko-fi, `kroolworld`, the same as Krool World Forever. Only in that setting, never
-  in the description.
+- **Donation:** Ko-fi, `kroolworld`, the same as Krool World Forever: the Donation Method setting,
+  plus one plain line at the end of the description (as on the bundle's page). Never in the
+  addon's in-game UI.
 - **Relations:** none. It needs no other addon.
 
 ## Summary (256 max)
@@ -41,6 +42,8 @@ The recipe data comes from WoW Forever's own game files, including the roughly 9
 Inspired by MasterTradeSkills for Vanilla and Turtle WoW. This is a fresh write for Forever.
 
 Open source (MIT): https://github.com/Krool/ReagentUses
+
+Ko-fi: https://ko-fi.com/kroolworld
 
 ## State (2026-11-14)
 
