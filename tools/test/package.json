@@ -1,0 +1,12 @@
+{
+  "name": "reagentuses-tests",
+  "private": true,
+  "description": "Runs ReagentUses under stubbed Forever clients (fengari), one suite per folder, then lints its API use against the Forever allowlist.",
+  "scripts": {
+    "test": "node run.js && node ../forever-api/api-lint.js ../../ReagentUses"
+  },
+  "devDependencies": {
+    "fengari": "^0.1.4",
+    "luaparse": "^0.3.1"
+  }
+}

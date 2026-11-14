@@ -1,0 +1,15 @@
+## Interface: 16001
+## Title: Reagent Uses
+## Notes: Hold Ctrl over a crafting material to see every recipe that uses it, colored by your skill, with where each recipe is learned and which of your characters know it. /ru
+## Author: Krool
+## Version: 0.0.0
+## Category: Professions
+## IconTexture: Interface\Icons\INV_Fabric_Silk_01
+## AddonCompartmentFunc: ReagentUses_OnCompartmentClick
+## X-Curse-Project-ID: 1804597
+## SavedVariables: ReagentUsesDB
+
+Data.lua
+Core.lua
+Tooltip.lua
+Options.lua
