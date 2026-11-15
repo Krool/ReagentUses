@@ -77,4 +77,4 @@ Turtle WoW. This is a fresh write with no code taken from it.
 
 MIT license.
 
-Ko-fi: [ko-fi.com/kroolworld](https://ko-fi.com/kroolworld)
+[Donate](https://ko-fi.com/kroolworld)

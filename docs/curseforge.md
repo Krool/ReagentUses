@@ -11,7 +11,8 @@ The text and settings for the CurseForge project. The game version on every file
 - **Source:** https://github.com/Krool/ReagentUses (Automatic Packaging off: `release.ps1 -Publish`
   uploads the tested zip).
 - **Donation:** Ko-fi, `kroolworld`, the same as Krool World Forever: the Donation Method setting,
-  plus one plain line at the end of the description (as on the bundle's page). Never in the
+  plus one plain line at the end of the description (as on the bundle's page): a link
+  labeled "Donate", never the platform name (owner, 2026-11-14). Never in the
   addon's in-game UI.
 - **Relations:** none. It needs no other addon.
 
@@ -43,7 +44,7 @@ Inspired by MasterTradeSkills for Vanilla and Turtle WoW. This is a fresh write 
 
 Open source (MIT): https://github.com/Krool/ReagentUses
 
-Ko-fi: https://ko-fi.com/kroolworld
+[Donate](https://ko-fi.com/kroolworld)
 
 ## State (2026-11-14)
 
