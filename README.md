@@ -1,5 +1,13 @@
 # Reagent Uses
 
+> **Moved.** Since 0.19.0 Reagent Uses lives in
+> [Krool World Forever](https://github.com/Krool/KroolWorldForever), and this repo is archived.
+> It ships two ways from there: inside the Krool World Forever bundle, and on its own as
+> **KW Reagent Uses** (same folder, `ReagentUses`, so an old install updates in place). Download
+> `ReagentUses-<version>.zip` from the
+> [latest release there](https://github.com/Krool/KroolWorldForever/releases/latest), or get it on
+> [CurseForge](https://www.curseforge.com/wow/addons/reagent-uses). The text below describes 0.1.0.
+
 A World of Warcraft: Forever addon. Hold **Ctrl** over a crafting material and its tooltip lists
 every recipe that uses it, grouped by profession.
 
